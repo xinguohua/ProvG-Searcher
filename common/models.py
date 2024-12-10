@@ -307,7 +307,6 @@ class SAGEConv(pyg_nn.MessagePassing):
         except:
             print(edge_index)
             pc.dump([edge_index, size, x, edge_weight, res_n_id],open('edge_index.pkl','wb'))
-            dfghjk
 
     def message(self, x_j, edge_weight):
         #return x_j if edge_weight is None else edge_weight.view(-1, 1) * x_j

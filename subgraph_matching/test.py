@@ -67,7 +67,7 @@ def validation(args, model, test_pts, logger, batch_n, epoch, verbose=False):
                         raw_pred[pos_a.num_graphs + i] = MAX_MARGIN_SCORE
 
             if args.method_type == "order":
-                pred = model.clf_model(torch.nn.functional.sigmoid(raw_pred.unsqueeze(1)))
+                pred = model.clf_model(torch.sigmoid(raw_pred.unsqueeze(1)))
                 pred = pred.argmax(dim=-1) #model from diff between embeds
                 raw_pred *= -1 #close 0 for pozitive, min for negative
             elif args.method_type == "ensemble":

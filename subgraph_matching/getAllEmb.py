@@ -43,7 +43,6 @@ from common import data
 from common import models
 from common import utils
 if HYPERPARAM_SEARCH:
-    from test_tube import HyperOptArgumentParser
     from subgraph_matching.hyp_search import parse_encoder
 else:
     from subgraph_matching.config import parse_encoder

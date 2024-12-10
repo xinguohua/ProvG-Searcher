@@ -287,7 +287,6 @@ def gen_batch_childMP(a, b, c, train,node_anchored,dataset, max_size=25, min_siz
     max_size=15
     batch_size = a
     train_set, test_set, task = dataset
-#         global dataset
     graphs = train_set if train else test_set
     if seed is not None:
         random.seed(seed)
@@ -295,9 +294,8 @@ def gen_batch_childMP(a, b, c, train,node_anchored,dataset, max_size=25, min_siz
     pos_a, pos_b = [], []
     pos_a_anchors, pos_b_anchors = [], []
 
-    while len(pos_a) < (batch_size // 2):  
-
-        size = random.randint(min_size+1, max_size)
+    while len(pos_a) < (batch_size // 2):
+        random.randint(min_size + 1, max_size)
         graph, a = utils.get_graph_nodes(graphs)
         _,b = utils.create_pos_query(graph, a[0], train)
 
@@ -308,8 +306,7 @@ def gen_batch_childMP(a, b, c, train,node_anchored,dataset, max_size=25, min_siz
             anchor = a[0]
             pos_a_anchors.append(anchor)
             pos_b_anchors.append(anchor)
-#             neigh_a, neigh_b = graph.subgraph(a), graph.subgraph(b)#.copy()
-        neigh_a, neigh_b = graph, b 
+        neigh_a, neigh_b = graph, b
 
         pos_a.append(neigh_a)
         pos_b.append(neigh_b)
@@ -317,8 +314,7 @@ def gen_batch_childMP(a, b, c, train,node_anchored,dataset, max_size=25, min_siz
     neg_a, neg_b = [], []
     neg_a_anchors, neg_b_anchors = [], []
     while len(neg_a) < (batch_size // 2):
-
-        size = random.randint(min_size+1, max_size)
+        random.randint(min_size + 1, max_size)
         graph_a, a = utils.get_graph_nodes(graphs)
         graph_b, b, neg_source, b_anchor = utils.create_neg_query(graphs,a[0],train)
 
