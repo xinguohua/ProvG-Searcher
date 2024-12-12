@@ -1,18 +1,14 @@
 """Defines all graph embedding models"""
-from functools import reduce
-import random
 
-import networkx as nx
-import numpy as np
+import pickle as pc
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch_geometric.nn as pyg_nn
 import torch_geometric.utils as pyg_utils
-
-from common import utils
 from common import feature_preprocess
-import pickle as pc
+from common import utils
+
 
 # GNN -> concat -> MLP graph classification baseline
 class BaselineMLP(nn.Module):

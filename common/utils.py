@@ -115,12 +115,10 @@ def create_neg_query(graphs, org_node, isTrain, recursiveCount=0):
     if isTrain:
         if nodes_data_train is None:
             nodes_data_train = nodes_data.loc[list(graphs.keys())]
-        nodes_data_tmp = nodes_data_train
         procCandidates_tmp = procCandidatesTrain
     else:
         if nodes_data_test is None:
             nodes_data_test = nodes_data.loc[list(graphs.keys())]
-        nodes_data_tmp = nodes_data_test
         procCandidates_tmp = procCandidatesTest
 
     dictKey = 'train' if isTrain else 'test'
@@ -133,11 +131,9 @@ def create_neg_query(graphs, org_node, isTrain, recursiveCount=0):
         abstract = nodes_data.loc[org_node].type
         tmp_df = nodes_data[(nodes_data.type == abstract) & (nodes_data.path != node_path)]
         candidate_uuid = set(tmp_df.index.to_list()) & set(list(graphs.keys()))
-
         path_stat = dict()
         for candidate_path in set(tmp_df.loc[list(candidate_uuid)].path.to_list()):
             path_stat = {**path_stat, **posQueryHashStats[dictKey][candidate_path]}
-
         candidate_paths = set(path_stat.keys()) - set(posQueryHashes[node_path][org_node])
 
     if len(candidate_paths) > 0:
@@ -146,11 +142,8 @@ def create_neg_query(graphs, org_node, isTrain, recursiveCount=0):
         possible_seeds = list(hash2seed[neg_path_hashes] & set(list(graphs.keys())))
 
         neg_seed = random.choices(possible_seeds)[0]
-        # print('neg_seed', len(possible_seeds))
         assert len(possible_seeds) != 0
-
         initial_graph = hash2graph[neg_seed][neg_path_hashes].copy()
-        # neg_seed = list(initial_graph.nodes)[0]
         graph = graphs[neg_seed]
 
         min_size = min(4, len(graph))
@@ -284,34 +277,27 @@ def find_pos_hash_child_mp(graph, node,hashSet, recursiveCount=0):
             return positiveHash, nodes
         else:
             return find_pos_hash_child_mp(graph, node,hashSet, recursiveCount+1)
-    
+
+
 def create_pos_query(graph, node, isTrain, recursiveCount=0):
     global posQueryHashes1
-    
-    # if isTrain:
     dictKey = 'train' if isTrain else 'test'
     node_path = nodes_data.loc[node].path
     path_stat = posQueryHashStats[dictKey][node_path]
-    candidate_paths = set(posQueryHashes[node_path][node])
-
-    if len(candidate_paths) > 0:
-        weights=[1/path_stat[x] if path_stat[x]!=0 else 0 for x in candidate_paths]
-        if sum(weights)==0:
-            print('all zero weight:',candidate_paths)
+    candidateHashs = set(posQueryHashes[node_path][node])
+    if len(candidateHashs) > 0:
+        weights = [1 / path_stat[x] if path_stat[x] != 0 else 0 for x in candidateHashs]
+        if sum(weights) == 0:
+            print('all zero weight:', candidateHashs)
         else:
-            path_hashes = random.choices(list(candidate_paths),weights=weights)[0]
-            initial_graph = hash2graph[node][path_hashes]
-
-            min_size=min(4,len(graph))
-            max_size=min(10,len(graph))
-            size = random.randint(min_size,max_size)
-
-            ne = findNeighPathFromPath(graph,initial_graph, size)
-
+            candidate_hash = random.choices(list(candidateHashs), weights=weights)[0]
+            initial_graph = hash2graph[node][candidate_hash]
+            min_size = min(4, len(graph))
+            max_size = min(10, len(graph))
+            size = random.randint(min_size, max_size)
+            ne = findNeighPathFromPath(graph, initial_graph, size)
             return graph, ne
-
     return None, None
-        
 
     
 def getPosChanges(g,seed_proc,procCandidates_tmp):
@@ -373,13 +359,13 @@ def return_cond(graph,neigh,c):
     return False
 
 def get_graph_nodes(graphs):
-    start_node = random.choice(list(graphs.keys()))
-    graph = graphs[start_node]
-    node_list=[start_node]
+    start_node_id = random.choice(list(graphs.keys()))
+    graph = graphs[start_node_id]
+    node_id_lists=[start_node_id]
     all_node = list(graph.nodes)
-    all_node.remove(start_node)
-    node_list.extend(all_node)
-    return graph, node_list
+    all_node.remove(start_node_id)
+    node_id_lists.extend(all_node)
+    return graph, node_id_lists
 
 def sample_graph_neigh(graph, start_node,findPath=False):
     neigh = [start_node]
@@ -402,23 +388,23 @@ def findNeignh(graph,neigh,findPath=False):
     initial_graph = graph.subgraph(neigh).copy()
     
     return findNeighPath(graph,initial_graph, start_node, size,findPath=findPath)
-    
-def findNeighPathFromPath(graph,initial_graph, size):
-        
-    frontier_edges = set()
-    for neig in initial_graph.nodes:
-        frontier_edges = frontier_edges|set(graph.in_edges(neig))
-        frontier_edges = frontier_edges|set(graph.out_edges(neig))
 
-    frontier_edges = frontier_edges-set(initial_graph.edges)
+
+def findNeighPathFromPath(graph, initial_graph, size):
+    frontier_edges = set()
+    for node in initial_graph.nodes:
+        frontier_edges = frontier_edges | set(graph.in_edges(node))
+        frontier_edges = frontier_edges | set(graph.out_edges(node))
+
+    frontier_edges = frontier_edges - set(initial_graph.edges)
 
     while len(list(initial_graph.nodes)) < size and frontier_edges:
-        new_edge = random.choices(list(frontier_edges))[0] #,weights=(degrees[x[]]**3 for x in frontier_edges)
+        new_edge = random.choices(list(frontier_edges))[0]
         if new_edge in set(initial_graph.edges):
             continue
-        frontier_edges = frontier_edges-set([new_edge])
+        frontier_edges = frontier_edges - set([new_edge])
         edge_feature = list(graph.get_edge_data(*new_edge).items())[0][1]
-        initial_graph.add_edge(new_edge[0], new_edge[1],type_edge=edge_feature['type_edge'])
+        initial_graph.add_edge(new_edge[0], new_edge[1], type_edge=edge_feature['type_edge'])
     return initial_graph
 
     

@@ -223,10 +223,11 @@ class DiskDataSource(DataSource):
         self.neg_a_anchors.extend(neg_a_anchors)
         self.neg_b.extend(neg_b)
         self.neg_b_anchors.extend(neg_b_anchors)
-        
+
     def gen_batch_child(self, a, b, c, train, max_size=25, min_size=15, seed=None,
-        filter_negs=False, sample_method="tree-pair"):
-        record = gen_batch_childMP(a,b, c, train,self.node_anchored,self.dataset, max_size, min_size, seed, filter_negs, sample_method)
+                        filter_negs=False, sample_method="tree-pair"):
+        record = gen_batch_childMP(a, train, self.node_anchored, self.dataset, max_size, min_size, seed, filter_negs,
+                                   sample_method)
         self.record2self(record)
     
     
@@ -262,13 +263,9 @@ class DiskDataSource(DataSource):
                 
         
     def gen_batch(self, a, b, c, train,max_size=25, min_size=15, seed=None,filter_negs=False, sample_method="tree-pair"):
-        
-        batch_size = a
         self.initialazeArrays()
         self.gen_batch_child(a, b, c, train, max_size=max_size, min_size=min_size, seed=seed,
                             filter_negs=filter_negs, sample_method=sample_method)
-            
-    
         pos_a = utils.batch_nx_graphs(self.pos_a, anchors=self.pos_a_anchors if
             self.node_anchored else None,feature_type=self.feature_type)
         pos_b = utils.batch_nx_graphs(self.pos_b, anchors=self.pos_b_anchors if
@@ -277,15 +274,13 @@ class DiskDataSource(DataSource):
             self.node_anchored else None,feature_type=self.feature_type)
         neg_b = utils.batch_nx_graphs(self.neg_b, anchors=self.neg_b_anchors if
             self.node_anchored else None,feature_type=self.feature_type)
-
         return pos_a, pos_b, neg_a, neg_b
     
-def gen_batch_childMP(a, b, c, train,node_anchored,dataset, max_size=25, min_size=15, seed=None,
-    filter_negs=False, sample_method="tree-pair"):
-
+def gen_batch_childMP(node_id_lists, train, node_anchored, dataset, max_size=25, min_size=15, seed=None,
+                      filter_negs=False, sample_method="tree-pair"):
     min_size=2
     max_size=15
-    batch_size = a
+    batch_size = node_id_lists
     train_set, test_set, task = dataset
     graphs = train_set if train else test_set
     if seed is not None:
@@ -296,14 +291,14 @@ def gen_batch_childMP(a, b, c, train,node_anchored,dataset, max_size=25, min_siz
 
     while len(pos_a) < (batch_size // 2):
         random.randint(min_size + 1, max_size)
-        graph, a = utils.get_graph_nodes(graphs)
-        _,b = utils.create_pos_query(graph, a[0], train)
+        graph, node_id_lists = utils.get_graph_nodes(graphs)
+        _,b = utils.create_pos_query(graph, node_id_lists[0], train)
 
         if b is None:
             continue
 
         if node_anchored:
-            anchor = a[0]
+            anchor = node_id_lists[0]
             pos_a_anchors.append(anchor)
             pos_b_anchors.append(anchor)
         neigh_a, neigh_b = graph, b
@@ -315,19 +310,19 @@ def gen_batch_childMP(a, b, c, train,node_anchored,dataset, max_size=25, min_siz
     neg_a_anchors, neg_b_anchors = [], []
     while len(neg_a) < (batch_size // 2):
         random.randint(min_size + 1, max_size)
-        graph_a, a = utils.get_graph_nodes(graphs)
-        graph_b, b, neg_source, b_anchor = utils.create_neg_query(graphs,a[0],train)
+        graph_a, node_id_lists = utils.get_graph_nodes(graphs)
+        graph_b, b, neg_source, b_anchor = utils.create_neg_query(graphs, node_id_lists[0], train)
 
         if b is None:
             continue
 
         neigh_a, neigh_b = graph_a, b
 
-        if not isNotSubGraph(neigh_b,neigh_a,b_anchor,a[0],utils.nodes_data,isTrain=train):
+        if not isNotSubGraph(neigh_b, neigh_a, b_anchor, node_id_lists[0], utils.nodes_data, isTrain=train):
             continue
 
         if node_anchored:
-            neg_a_anchors.append(a[0])
+            neg_a_anchors.append(node_id_lists[0])
             neg_b_anchors.append(b_anchor)
         
         neg_a.append(neigh_a)

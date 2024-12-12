@@ -3,34 +3,17 @@ Subgraph matching model needs to have been trained with the node-anchored option
 (default)."""
 
 import argparse
-from itertools import permutations
-import pickle
-from queue import PriorityQueue
 import os
-import random
-import time
+import pickle
 
-from deepsnap.batch import Batch
 import networkx as nx
 import numpy as np
-from sklearn.manifold import TSNE
 import torch
-import torch.nn as nn
-import torch.multiprocessing as mp
-import torch.nn.functional as F
-import torch.optim as optim
-from torch.utils.tensorboard import SummaryWriter
-from torch_geometric.data import DataLoader
-from torch_geometric.datasets import TUDataset
-import torch_geometric.utils as pyg_utils
-import torch_geometric.nn as pyg_nn
 
-from common import data
-from common import models
 from common import utils
 from subgraph_matching.config import parse_encoder
-from subgraph_matching.test import validation
 from subgraph_matching.train import build_model
+
 
 def gen_alignment_matrix(model, query, target, method_type="order"):
     """Generate subgraph matching alignment matrix for a given query and

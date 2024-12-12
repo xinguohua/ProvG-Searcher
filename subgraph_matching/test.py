@@ -1,15 +1,16 @@
-from common import utils
 from collections import defaultdict
 from datetime import datetime
-from sklearn.metrics import roc_auc_score, confusion_matrix, roc_curve
-from sklearn.metrics import precision_recall_curve, average_precision_score
+
 import torch
-import matplotlib.pyplot as plt
+from sklearn.metrics import average_precision_score
+from sklearn.metrics import roc_auc_score, roc_curve
+
+from common import utils
 
 USE_ORCA_FEATS = False # whether to use orca motif counts along with embeddings
 MAX_MARGIN_SCORE = 1e9 # a very large margin score to given orca constraints
 
-from sklearn.metrics import accuracy_score, precision_score, recall_score, confusion_matrix
+from sklearn.metrics import confusion_matrix
 import pandas as pd
 import numpy as np
 
