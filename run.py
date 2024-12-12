@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 plt.rcParams.update({'font.size': 16})
 from subgraph_matching import train
 import argparse
+import helper.create_candidate as cn
+import helper.create_pos_neg_dict as cd
 
 from subgraph_matching import config 
 import os
@@ -18,9 +20,7 @@ if __name__ == "__main__":
     if not os.path.exists(sampling_stats):
         print('first sampling stats will be created')
         print('this is a one time process for each dataset')
-        import create_neg
-        import create_pos_neg_dict as cd
-        create_neg.run(args.numberOfNeighK,args.data_identifier)
+        cn.run(args.numberOfNeighK,args.data_identifier)
         cd.run(args.data_identifier,args.numberOfNeighK) 
     # 加载数据集
     ### load dataset and set utils parameters accordingly
