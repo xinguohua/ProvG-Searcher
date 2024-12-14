@@ -107,10 +107,8 @@ def loadDatas(discr='', feature='ta1-theia-e3-official-6r', isW2V=False, numberO
     print('data loaded')
 
 
-def create_neg_query(graphs, org_node, isTrain, recursiveCount=0):
+def create_neg_query(graphs, org_node, isTrain):
     global hash2graph, posQueryHashes, posQueryHashStats, hash2seed, negQueryHashes1
-    if recursiveCount > 100:
-        return None, None, None, None
 
     global nodes_data_train, nodes_data_test, nodes_data
     global procCandidatesTest, procCandidatesTrain
@@ -282,7 +280,7 @@ def find_pos_hash_child_mp(graph, node, hashSet, recursiveCount=0):
             return find_pos_hash_child_mp(graph, node, hashSet, recursiveCount + 1)
 
 
-def create_pos_query(graph, node, isTrain, recursiveCount=0):
+def create_pos_query(graph, node, isTrain):
     global posQueryHashes1
     dictKey = 'train' if isTrain else 'test'
     node_path = nodes_data.loc[node].path
@@ -367,11 +365,7 @@ def return_cond(graph, neigh, c):
 def get_graph_nodes(graphs):
     start_node_id = random.choice(list(graphs.keys()))
     graph = graphs[start_node_id]
-    node_id_lists = [start_node_id]
-    all_node = list(graph.nodes)
-    all_node.remove(start_node_id)
-    node_id_lists.extend(all_node)
-    return graph, node_id_lists
+    return graph, start_node_id
 
 
 def sample_graph_neigh(graph, start_node, findPath=False):
