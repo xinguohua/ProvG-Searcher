@@ -1,5 +1,7 @@
 import gc
 import numpy as np
+from torch_geometric.loader import DataLoader
+
 from common import utils
 
 gc.enable()
@@ -58,6 +60,39 @@ class DataSource:
     def gen_batch(self, batch_size, train):
         raise NotImplementedError
 
+
+class GraphDataLoader:
+    def __init__(self, graphs_dict, batch_size=32, shuffle=True):
+        """
+        自定义 DataLoader 初始化
+        :param graphs_dict: 字典形式存储的图数据，例如 {'graph1': Data, 'graph2': Data, ...}
+        :param batch_size: 每个 batch 包含的图数量
+        :param shuffle: 是否随机打乱图数据
+        """
+        self.graphs_dict = graphs_dict
+        self.batch_size = batch_size
+        self.shuffle = shuffle
+        self.keys = list(graphs_dict.keys())  # 提取所有图的键
+
+    def __iter__(self):
+        """
+        返回一个迭代器，用于按 batch 返回数据
+        """
+        # 打乱数据（如果需要）
+        if self.shuffle:
+            random.shuffle(self.keys)
+
+        # 按 batch 大小切分
+        for i in range(0, len(self.keys), self.batch_size):
+            batch_keys = self.keys[i:i + self.batch_size]
+            # 根据键返回对应的图数据
+            yield {key: self.graphs_dict[key] for key in batch_keys}
+
+    def __len__(self):
+        """
+        返回总 batch 数量
+        """
+        return (len(self.keys) + self.batch_size - 1) // self.batch_size  # 向上取整
 
 def removekey(d, key):
     r = d[key]
@@ -197,9 +232,10 @@ class DiskDataSource(DataSource):
         self.neg_b = []
         self.neg_b_anchors = []
 
-    def gen_data_loaders(self, size, batch_size):
-        loaders = [[batch_size] * (size // batch_size) for i in range(3)]
-        return loaders
+    def gen_data_loaders(self, batch_size, train):
+        train_set, test_set, task = self.dataset
+        graphs = train_set if train else test_set
+        return GraphDataLoader(graphs, batch_size=batch_size, shuffle=train)
 
     def record2self(self, record):
         pos_a, pos_a_anchors, pos_b, pos_b_anchors, neg_a, neg_a_anchors, neg_b, neg_b_anchors = record
@@ -211,7 +247,6 @@ class DiskDataSource(DataSource):
                                      anchors=neg_a_anchors)
         neg_b = utils.feature_graphs(neg_b, self.feature_type, self.data_identifier, numberOfNeighK=self.numberOfNeighK,
                                      anchors=neg_b_anchors)
-
         self.pos_a.extend(pos_a)
         self.pos_a_anchors.extend(pos_a_anchors)
         self.pos_b.extend(pos_b)
@@ -221,9 +256,6 @@ class DiskDataSource(DataSource):
         self.neg_b.extend(neg_b)
         self.neg_b_anchors.extend(neg_b_anchors)
 
-    def gen_batch_child(self, batch_size, train):
-        record = gen_batch_childMP(batch_size, train, self.node_anchored, self.dataset)
-        self.record2self(record)
 
     def get_all_graph(self, batch_size):
         if not self.combined:
@@ -248,26 +280,24 @@ class DiskDataSource(DataSource):
         for key in procs:
             del self.dataset[key]
         graphs = utils.feature_graphs(graphs, self.feature_type, self.data_identifier, anchors=procs)
-        graphs = utils.batch_nx_graphs(graphs, anchors=procs, feature_type=self.feature_type)
+        graphs = utils.batch_nx_graphs(graphs)
         return procs, graphs
 
-    def gen_batch(self, batch_size, train):
+    def gen_batch(self, origin_batch, train):
         self.initialazeArrays()
-        self.gen_batch_child(batch_size, train)
-        pos_a = utils.batch_nx_graphs(self.pos_a, anchors=self.pos_a_anchors if
-        self.node_anchored else None, feature_type=self.feature_type)
-        pos_b = utils.batch_nx_graphs(self.pos_b, anchors=self.pos_b_anchors if
-        self.node_anchored else None, feature_type=self.feature_type)
-        neg_a = utils.batch_nx_graphs(self.neg_a, anchors=self.neg_a_anchors if
-        self.node_anchored else None, feature_type=self.feature_type)
-        neg_b = utils.batch_nx_graphs(self.neg_b, anchors=self.neg_b_anchors if
-        self.node_anchored else None, feature_type=self.feature_type)
+        record = gen_batch_childMP(train, self.node_anchored, origin_batch)
+        self.record2self(record)
+        pos_a = utils.batch_nx_graphs(self.pos_a)
+        pos_b = utils.batch_nx_graphs(self.pos_b)
+        neg_a = utils.batch_nx_graphs(self.neg_a)
+        neg_b = utils.batch_nx_graphs(self.neg_b)
         return pos_a, pos_b, neg_a, neg_b
 
 
-def gen_batch_childMP(batch_size, train, node_anchored, dataset):
-    train_set, test_set, task = dataset
-    graphs = train_set if train else test_set
+def gen_batch_childMP(train, node_anchored, origin_batch):
+    batch_size = len(origin_batch)
+    graphs = origin_batch
+
     pos_a, pos_b = [], []
     pos_a_anchors, pos_b_anchors = [], []
 

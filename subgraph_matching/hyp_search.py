@@ -29,7 +29,7 @@ def parse_encoder(parser):
                         help='Number of inner graph conv layers (gatedgraphconv)')
     parser.add_argument('--max_graph_size', type=int,
                         help='max training graph size')
-    parser.add_argument('--n_batches', type=int,
+    parser.add_argument('--n_epochs', type=int,
                         help='Number of training minibatches')
     parser.add_argument('--dataset', type=str,
                         help='Dataset')
@@ -66,7 +66,7 @@ def parse_encoder(parser):
                         hidden_dim=64,
                         skip="learnable",
                         dropout=0.0,
-                        n_batches=1000000,
+                        n_epochs=10,
                         opt='adam',   # opt_enc_parser
                         opt_scheduler='none',
                         opt_restart=100,

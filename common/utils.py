@@ -1,38 +1,29 @@
-from collections import defaultdict, Counter
-
-from deepsnap.graph import Graph as DSGraph
-from deepsnap.batch import Batch
-from deepsnap.dataset import GraphDataset
-import torch
-import torch.optim as optim
-import torch_geometric.utils as pyg_utils
-from torch_geometric.data import DataLoader
-import networkx as nx
-import numpy as np
-import random
-import scipy.stats as stats
-from tqdm import tqdm
 import math
+import pickle as pc
 import random
+from collections import Counter
 from collections import defaultdict
 
-from common import feature_preprocess
-# from common import hash
-
+import networkx as nx
+import numpy as np
 ##### added by enes
 import pandas as pd
-import pickle as pc
+import torch
+import torch.optim as optim
+from deepsnap.batch import Batch
+from deepsnap.graph import Graph as DSGraph
+from tqdm import tqdm
 
 from helper import utilsDarpha
+
+# from common import hash
 
 base_dir = ''
 
 import sys
 
 sys.path.insert(0, 'helper/')
-# import helper.utilsDarpha
 import dill
-# import create_pos_neg_dict #needed for dill
 import helper.hash as g_hash
 
 device_index = 0
@@ -60,10 +51,9 @@ posQueryHashStats = None
 hash2seed = None
 
 
-def loadDatas(discr='', feature='ta1-theia-e3-official-6r', isW2V=False, numberOfNeighK=None,
-              args=None):  # is_discr=_disc
-    global nodes_type, nodes_data, memory_index, abstractType2array, procAdd, procName2Feature
-    global procCandidatesTest, procCandidatesTrain, typeAbs, numberOfNeighk, global_args
+def load_datas(feature='ta1-theia-e3-official-6r', numberOfNeighK=None,
+               args=None):
+    global nodes_data, procCandidatesTest, procCandidatesTrain, numberOfNeighk, global_args, typeAbs
     global hash2graph, posQueryHashes, posQueryHashStats, hash2seed
 
     numberOfNeighk = numberOfNeighK
@@ -72,33 +62,26 @@ def loadDatas(discr='', feature='ta1-theia-e3-official-6r', isW2V=False, numberO
     data_dir = f'data/{feature}/'
     print('load data')
 
-    def getType(row):
-        tp = row['type']
-        if tp in abstarct_indexer:
-            return abstarct_indexer[tp]
-        else:
-            return len(abstarct_indexer)
-
     abstarct_indexer = pc.load(open(f'{feature_dir}abstarct_indexer.pc', 'rb'))
     nodes_data = pd.read_csv(f'{feature_dir}nodes_data.csv')
     nodes_data = nodes_data.drop_duplicates(subset=['uuid'])
-
-    nodes_data['type_index'] = nodes_data.apply(getType, axis=1)
     nodes_data = nodes_data.set_index('uuid')
-    abstractType2array = pc.load(open(feature_dir + 'type2array.pc', 'rb'))
-    procName2Feature = utilsDarpha.findProcFeature('gtfobins/*.md')
-    procAdd = pc.load(open('gtfobins/procAdd.pkl', 'rb'))
+    typeAbs = {}
+    typeAbs['other'] = set(nodes_data.type)
+    typeAbs['proc'] = set([tp for tp in typeAbs['other'] if '_Proc' in tp])
+    typeAbs['file'] = set([tp for tp in typeAbs['other'] if '_File' in tp])
+    typeAbs['other'] = typeAbs['other'].difference(typeAbs['proc'].union(typeAbs['file']))
+
+    default_index = len(abstarct_indexer)
+    nodes_data['type_index'] = nodes_data['type'].apply(
+        lambda tp: abstarct_indexer.get(tp, default_index)
+    )
 
     save_file = f'{data_dir}test_neg_dict_{numberOfNeighK}.pc'
     procCandidatesTest = pc.load(open(save_file, 'rb'))
     save_file = f'{data_dir}train_neg_dict_{numberOfNeighK}.pc'
     procCandidatesTrain = pc.load(open(save_file, 'rb'))
     print(save_file)
-    typeAbs = {}
-    typeAbs['other'] = set(nodes_data.type)
-    typeAbs['proc'] = set([tp for tp in typeAbs['other'] if '_Proc' in tp])
-    typeAbs['file'] = set([tp for tp in typeAbs['other'] if '_File' in tp])
-    typeAbs['other'] = typeAbs['other'].difference(typeAbs['proc'].union(typeAbs['file']))
 
     hash2graph = pc.load(open(f'{data_dir}{numberOfNeighK}hash2graph.pkl', 'rb'))
     posQueryHashes = dill.load(open(f'{data_dir}{numberOfNeighK}posQueryHashes.pkl', 'rb'))
@@ -106,6 +89,37 @@ def loadDatas(discr='', feature='ta1-theia-e3-official-6r', isW2V=False, numberO
     hash2seed = dill.load(open(f'{data_dir}{numberOfNeighK}hash2seed.pkl', 'rb'))
     print('data loaded')
 
+
+def prepare_feature(feature='ta1-theia-e3-official-6r'):
+    global nodes_data, abstractType2array, procAdd, procName2Feature
+
+    feature_dir = f'node_feature/{feature}/'
+    abstractType2array = pc.load(open(feature_dir + 'type2array.pc', 'rb'))
+    procName2Feature = utilsDarpha.findProcFeature('gtfobins/*.md')
+    procAdd = pc.load(open('gtfobins/procAdd.pkl', 'rb'))
+    print('feature loaded')
+
+def getNodeTypeNew(v):
+    global abstractType2array
+    row = nodes_data.loc[v]
+    feat = abstractType2array[row.type].copy()
+    return feat
+
+def getProcUse(v):
+    global nodes_data, procAdd, procName2Feature
+    feat_proc = [0] * len(procAdd)
+    try:
+        row = nodes_data.loc[v]
+        if '_Proc' in row.type:
+            if type(row.path) == str:
+                proc_name = row.path.split('/')[-1]
+                if proc_name in procName2Feature:
+                    for proc_feat in procName2Feature[proc_name]:
+                        feat_proc[procAdd[proc_feat]] = 1
+    except:
+        pass
+
+    return feat_proc
 
 def create_neg_query(graphs, org_node, isTrain):
     global hash2graph, posQueryHashes, posQueryHashStats, hash2seed, negQueryHashes1
@@ -137,53 +151,51 @@ def create_neg_query(graphs, org_node, isTrain):
 
     # 核心
     if len(candidate_paths) > 0:
-        weights = list(1 / path_stat[x] for x in candidate_paths)
+        weights = list(1 / path_stat[x] if path_stat[x] != 0 else 1e-8 for x in candidate_paths)
         neg_path_hash = random.choices(list(candidate_paths), weights=weights)[0]
         possible_seeds = list(hash2seed[neg_path_hash] & set(list(graphs.keys())))
-        neg_seed = random.choices(possible_seeds)[0]
-        assert len(possible_seeds) != 0
-        initial_graph = hash2graph[neg_seed][neg_path_hash].copy()
-        graph = graphs[neg_seed]
-        min_size = min(4, len(graph))
-        max_size = min(10, len(graph))
-        size = random.randint(min_size, max_size)
-
-        ne = findNeighPathFromPath(graph, initial_graph, size)
-        if len(ne) > max(min_size, 1):
-            return None, ne, 'new method', neg_seed
-
+        if len(possible_seeds) != 0:
+            neg_seed = random.choices(possible_seeds)[0]
+            initial_graph = hash2graph[neg_seed][neg_path_hash].copy()
+            graph = graphs[neg_seed]
+            min_size = min(4, len(graph))
+            max_size = min(10, len(graph))
+            size = random.randint(min_size, max_size)
+            ne = findNeighPathFromPath(graph, initial_graph, size)
+            if len(ne) > max(min_size, 1):
+                return None, ne, 'new method', neg_seed
     # 兜底
-    cnd_dict = procCandidates_tmp[org_node]
-    cnd, cnd_type = getCnd(cnd_dict)
-    if cnd_type == 'other':
-        gr, ne = sample_graph_neigh_other(graphs[cnd], cnd)
-        start_node = cnd
+    if org_node in procCandidates_tmp:
+        cnd_dict = procCandidates_tmp[org_node]
+        cnd, cnd_type = getCnd(cnd_dict)
+        if cnd in graphs:
+            if cnd_type == 'other':
+                gr, ne = sample_graph_neigh_other(graphs[cnd], cnd)
+                start_node = cnd
 
-    if cnd_type == 'normal':
-        cnds = [cnd]
-        cnds.extend(list(cnd_dict['normal'][cnd]['cndNod']))
-        gr, ne = sample_graph_neigh_same(graphs[cnd], cnds)
-        start_node = cnds[0]
+            if cnd_type == 'normal':
+                cnds = [cnd]
+                cnds.extend(list(cnd_dict['normal'][cnd]['cndNod']))
+                gr, ne = sample_graph_neigh_same(graphs[cnd], cnds)
+                start_node = cnds[0]
 
-    if cnd_type == 'rand':
-        g = graphs[org_node].copy()
-        start_node = org_node
-        possibleChanges = getPosChanges(g, org_node, procCandidates_tmp)
-        if len(possibleChanges) > 0:
-            neigh = [org_node]
-            for possibleChange in possibleChanges:
-                seed_proc = list(possibleChange.keys())[0]
-                neigh.append(possibleChange[seed_proc])
-                g_tmp = graphs[seed_proc].copy()
-                g_tmp = nx.relabel_nodes(g_tmp, possibleChange)
-                g = nx.compose(g, g_tmp)
-
-            gr, ne = sample_graph_neigh_same(g, neigh)
-
-        else:
-            gr, ne = random_change(g.copy(), org_node)
-
-    return gr, ne, cnd_type, start_node
+            if cnd_type == 'rand':
+                g = graphs[org_node].copy()
+                start_node = org_node
+                possibleChanges = getPosChanges(g, org_node, procCandidates_tmp)
+                if len(possibleChanges) > 0:
+                    neigh = [org_node]
+                    for possibleChange in possibleChanges:
+                        seed_proc = list(possibleChange.keys())[0]
+                        neigh.append(possibleChange[seed_proc])
+                        g_tmp = graphs[seed_proc].copy()
+                        g_tmp = nx.relabel_nodes(g_tmp, possibleChange)
+                        g = nx.compose(g, g_tmp)
+                    gr, ne = sample_graph_neigh_same(g, neigh)
+                else:
+                    gr, ne = random_change(g.copy(), org_node)
+            return gr, ne, cnd_type, start_node
+    return None, None, None, None
 
 
 def random_change(g, org_node, maxChange=5):
@@ -679,31 +691,6 @@ def getNodeType(v):
         pass
     return types
 
-
-def getNodeTypeNew(v):
-    global nodes_data, abstractType2array, procAdd, procName2Feature
-    row = nodes_data.loc[v]
-    feat = abstractType2array[row.type].copy()
-    return feat
-
-
-def getProcUse(v):
-    global nodes_data, abstractType2array, procAdd, procName2Feature
-    feat_proc = [0] * len(procAdd)
-    try:
-        row = nodes_data.loc[v]
-        if '_Proc' in row.type:
-            if type(row.path) == str:
-                proc_name = row.path.split('/')[-1]
-                if proc_name in procName2Feature:
-                    for proc_feat in procName2Feature[proc_name]:
-                        feat_proc[procAdd[proc_feat]] = 1
-    except:
-        pass
-
-    return feat_proc
-
-
 def feature_graphs_abstract(graphs, feature_type='type_basic', anchors=None):
     for anchor, g in zip(anchors, graphs):
         for v in g.nodes:
@@ -747,7 +734,7 @@ def feature_graphs(graphs, feature_type, data_identifier, numberOfNeighK=None, a
     global nodes_data
     if type(nodes_data) == type(None):
         print('load data inside batch!!!')
-        loadDatas(feature=data_identifier, numberOfNeighK=numberOfNeighK)
+        load_datas(feature=data_identifier, numberOfNeighK=numberOfNeighK)
 
     splitted = feature_type.split('_')
     if feature_type.startswith('type'):
@@ -763,7 +750,7 @@ def feature_graphs(graphs, feature_type, data_identifier, numberOfNeighK=None, a
     return graphs
 
 
-def batch_nx_graphs(graphs, anchors=None, feature_type='type'):
+def batch_nx_graphs(graphs):
     batch = Batch.from_data_list([DSGraph(g.to_undirected()) for g in graphs])
     batch = batch.to(get_device())
     return batch

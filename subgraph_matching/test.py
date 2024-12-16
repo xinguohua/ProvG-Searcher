@@ -23,7 +23,7 @@ def save_roc(filename, fpr, tpr,threshold):
     
     df_result.to_csv(filename, index=False)
 
-def validation(args, model, test_pts, logger, batch_n, epoch, verbose=False):
+def validation(args, model, test_pts, logger, epoch, verbose=False):
     # test on new motifs
     model.eval()
     all_emb_as,all_emb_bs=[],[]
@@ -116,37 +116,18 @@ def validation(args, model, test_pts, logger, batch_n, epoch, verbose=False):
             tn, fp, fn, tp))
 
     if not args.test:
-        logger.add_scalar("Accuracy/test", acc, batch_n)
-        logger.add_scalar("Precision/test", prec, batch_n)
-        logger.add_scalar("Recall/test", recall, batch_n)
-        logger.add_scalar("AUROC/test", auroc, batch_n)
-        logger.add_scalar("AvgPrec/test", avg_prec, batch_n)
-        logger.add_scalar("TP/test", tp, batch_n)
-        logger.add_scalar("TN/test", tn, batch_n)
-        logger.add_scalar("FP/test", fp, batch_n)
-        logger.add_scalar("FN/test", fn, batch_n)
+        logger.add_scalar("Accuracy/test", acc, epoch)
+        logger.add_scalar("Precision/test", prec, epoch)
+        logger.add_scalar("Recall/test", recall, epoch)
+        logger.add_scalar("AUROC/test", auroc, epoch)
+        logger.add_scalar("AvgPrec/test", avg_prec, epoch)
+        logger.add_scalar("TP/test", tp, epoch)
+        logger.add_scalar("TN/test", tn, epoch)
+        logger.add_scalar("FP/test", fp, epoch)
+        logger.add_scalar("FN/test", fn, epoch)
         print("Saving {}".format(args.model_path))
         torch.save(model.state_dict(), args.model_path)
-            
-        
     return labels, raw_pred
-
-    if verbose:
-        conf_mat_examples = defaultdict(list)
-        idx = 0
-        for pos_a, pos_b, neg_a, neg_b in test_pts:
-            if pos_a:
-                pos_a = pos_a.to(utils.get_device())
-                pos_b = pos_b.to(utils.get_device())
-            neg_a = neg_a.to(utils.get_device())
-            neg_b = neg_b.to(utils.get_device())
-            for list_a, list_b in [(pos_a, pos_b), (neg_a, neg_b)]:
-                if not list_a: continue
-                for a, b in zip(list_a.G, list_b.G):
-                    correct = pred[idx] == labels[idx]
-                    conf_mat_examples[correct, pred[idx]].append((a, b))
-                    idx += 1
-    # return all_emb_as,all_emb_bs,pred
 
 if __name__ == "__main__":
     from subgraph_matching.train import main

@@ -5,7 +5,6 @@ from subgraph_matching import train
 import argparse
 import helper.create_candidate as cn
 import helper.create_pos_neg_dict as cd
-
 from subgraph_matching import config 
 import os
 
@@ -24,7 +23,8 @@ if __name__ == "__main__":
         cd.run(args.data_identifier,args.numberOfNeighK) 
     # 加载数据集
     ### load dataset and set utils parameters accordingly
-    utils.loadDatas(feature=args.data_identifier, numberOfNeighK=args.numberOfNeighK, args=args)
+    utils.load_datas(feature=args.data_identifier, numberOfNeighK=args.numberOfNeighK, args=args)
+    utils.prepare_feature(feature=args.data_identifier)
     utils.numberOfFeature = len(list(utils.abstractType2array.values())[0])
     args.feature_size = utils.numberOfFeature + 17
     utils.glob_feature=args.data_identifier

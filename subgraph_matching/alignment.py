@@ -33,7 +33,7 @@ def gen_alignment_matrix(model, query, target, method_type="order"):
     mat = np.zeros((len(query), len(target)))
     for i, u in enumerate(query.nodes):
         for j, v in enumerate(target.nodes):
-            batch = utils.batch_nx_graphs([query, target], anchors=[u, v])
+            batch = utils.batch_nx_graphs([query, target])
             embs = model.emb_model(batch)
             pred = model(embs[1].unsqueeze(0), embs[0].unsqueeze(0))
             raw_pred = model.predict(pred)
