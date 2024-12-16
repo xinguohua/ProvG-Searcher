@@ -8,22 +8,7 @@ from torch_scatter import scatter_add
 AUGMENT_METHOD = "concat"
 FEATURE_AUGMENT, FEATURE_AUGMENT_DIMS = [], []
 
-def norm(edge_index, num_nodes, edge_weight=None, improved=False,
-         dtype=None):
-    if edge_weight is None:
-        edge_weight = torch.ones((edge_index.size(1),), dtype=dtype,
-                                 device=edge_index.device)
 
-    fill_value = 1 if not improved else 2
-    edge_index, edge_weight = pyg_utils.add_remaining_self_loops(
-        edge_index, edge_weight, fill_value, num_nodes)
-
-    row, col = edge_index
-    deg = scatter_add(edge_weight, row, dim=0, dim_size=num_nodes)
-    deg_inv_sqrt = deg.pow(-0.5)
-    deg_inv_sqrt[deg_inv_sqrt == float('inf')] = 0
-
-    return edge_index, deg_inv_sqrt[row] * edge_weight * deg_inv_sqrt[col]
 
 def compute_identity(edge_index, n, k):
     edge_weight = torch.ones((edge_index.size(1),), dtype=torch.float,

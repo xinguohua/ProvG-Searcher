@@ -1,6 +1,3 @@
-import argparse
-from common import utils
-
 def parse_encoder(parser, arg_str=None):
     enc_parser = parser.add_argument_group()
     enc_parser.add_argument('--conv_type', type=str,

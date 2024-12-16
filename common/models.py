@@ -81,7 +81,6 @@ class SkipLastGNN(nn.Module):
         self.n_layers = args.n_layers
 
         if len(feature_preprocess.FEATURE_AUGMENT) > 0:
-            print(dsfjkjkdfjk)
             self.feat_preprocess = feature_preprocess.Preprocess(input_dim)
             input_dim = self.feat_preprocess.dim_out
         else:
