@@ -59,35 +59,31 @@ def load_datas(feature='ta1-theia-e3-official-6r', numberOfNeighK=None,
     global nodes_data, procCandidatesTest, procCandidatesTrain, numberOfNeighk, global_args, typeAbs
     global hash2graph, posQueryHashes, posQueryHashStats, hash2seed
 
-    # 创建负采样数据和正负样本字典的函数
-    sampling_stats = f'data/{args.data_identifier}/test_neg_dict_{args.numberOfNeighK}.pc'
-    if not os.path.exists(sampling_stats):
-        print('first sampling stats will be created')
-        print('this is a one time process for each dataset')
-        cre_candi.run(args.numberOfNeighK,args.data_identifier)
-        cd.run(args.data_identifier,args.numberOfNeighK)
-
-    numberOfNeighk = numberOfNeighK
-    global_args = args
     feature_dir = f'node_feature/{feature}/'
-    data_dir = f'data/{feature}/'
-    print('load data')
-
     abstarct_indexer = pc.load(open(f'{feature_dir}abstarct_indexer.pc', 'rb'))
     nodes_data = pd.read_csv(f'{feature_dir}nodes_data.csv')
     nodes_data = nodes_data.drop_duplicates(subset=['uuid'])
-    nodes_data = nodes_data.set_index('uuid')
+    nodes_data = nodes_data.set_index('uuid', drop = False)
     typeAbs = {}
     typeAbs['other'] = set(nodes_data.type)
     typeAbs['proc'] = set([tp for tp in typeAbs['other'] if '_Proc' in tp])
     typeAbs['file'] = set([tp for tp in typeAbs['other'] if '_File' in tp])
     typeAbs['other'] = typeAbs['other'].difference(typeAbs['proc'].union(typeAbs['file']))
-
     default_index = len(abstarct_indexer)
     nodes_data['type_index'] = nodes_data['type'].apply(
         lambda tp: abstarct_indexer.get(tp, default_index)
     )
 
+    cre_candi.run(args.numberOfNeighK, args.data_identifier, nodes_data)
+    cd.run(nodes_data, args.data_identifier, args.numberOfNeighK)
+
+    numberOfNeighk = numberOfNeighK
+    global_args = args
+
+    print('load data')
+
+
+    data_dir = f'data/{feature}/'
     save_file = f'{data_dir}test_neg_dict_{numberOfNeighK}.pc'
     procCandidatesTest = pc.load(open(save_file, 'rb'))
     save_file = f'{data_dir}train_neg_dict_{numberOfNeighK}.pc'
@@ -101,9 +97,10 @@ def load_datas(feature='ta1-theia-e3-official-6r', numberOfNeighK=None,
     print('data loaded')
 
 
+
+
 def prepare_feature(feature='ta1-theia-e3-official-6r'):
     global nodes_data, abstractType2array, procAdd, procName2Feature
-
     feature_dir = f'node_feature/{feature}/'
     abstractType2array = pc.load(open(feature_dir + 'type2array.pc', 'rb'))
     procName2Feature = utilsDarpha.findProcFeature('gtfobins/*.md')
@@ -766,43 +763,3 @@ def batch_nx_graphs(graphs):
     batch = batch.to(get_device())
     return batch
 
-
-def prepare_dataset(dataIdentifier, numberOfLayerK, testTrain, min_length=5, max_length=2000):
-    """
-    Prepare dataset for training or testing.
-
-    Parameters:
-        dataIdentifier (str): Identifier for the dataset folder.
-        numberOfLayerK (int): Parameter indicating the depth or number of layers (K).
-        testTrain (str): Indicates whether the data is for 'train' or 'test'.
-        min_length (int): Minimum length of dataset items to include.
-        max_length (int): Maximum length of dataset items to include.
-
-    Returns:
-        tuple: (dataset_tmp, proc_uuids, nodes_data, save_file)
-            - dataset_tmp: Filtered dataset dictionary.
-            - proc_uuids: Set of process UUIDs.
-            - nodes_data: DataFrame containing node features.
-            - save_file: Path to save the negative dictionary file.
-    """
-    # Load dataset
-    dataset_train_path = f'data/{dataIdentifier}/k_{numberOfLayerK}{testTrain}.pt'
-    with open(dataset_train_path, 'rb') as f:
-        dataset_train = pc.load(f)
-
-    # Filter dataset based on length criteria
-    dataset_tmp = {k: v for k, v in dataset_train.items() if min_length < len(v) < max_length}
-
-    print(f"Original dataset size: {len(dataset_train)}, Filtered dataset size: {len(dataset_tmp)}")
-    del dataset_train
-
-    # Load node data
-    nodes_data_path = f'node_feature/{dataIdentifier}/nodes_data.csv'
-    nodes_data = pd.read_csv(nodes_data_path)
-
-    # Filter nodes data based on dataset_tmp keys
-    df = nodes_data[nodes_data['uuid'].isin(list(dataset_tmp.keys()))]
-    # Extract unique process UUIDs
-    proc_uuids = set(df['uuid'].values)
-    save_file = f'data/{dataIdentifier}/{testTrain}_neg_dict_{numberOfLayerK}.pc'
-    return dataset_tmp, proc_uuids, nodes_data, save_file

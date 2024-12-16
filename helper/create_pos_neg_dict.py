@@ -108,7 +108,7 @@ def find_pos_hash_child_mp(nodes_data, numberOfNeighk, graph, node, hashSet, rec
         return find_pos_hash_child_mp(nodes_data, numberOfNeighk, graph, node, hashSet, recursiveCount + 1)
 
 
-def createHashes(data_identifier, k):
+def createHashes(nodes_data, data_identifier, k):
     global posQueryHashes, hash2graph, datasets, THREAD_COUNT
     posQueryHashes = defaultdict(lambda: defaultdict(set))
     hash2graph = defaultdict(dict)
@@ -156,12 +156,10 @@ def saveDicts(data_identifier, k):
     dill.dump(hash2seed, open(f'{save_dir}hash2seed.pkl', 'wb'))
 
 
-def run(data_identifier, k, thread_count=20):
-    global nodes_data, THREAD_COUNT
+def run(nodes_data, data_identifier, k, thread_count=20):
+    global THREAD_COUNT
     THREAD_COUNT = thread_count
-    nodes_data = pd.read_csv(f'node_feature/{data_identifier}/all_nodes_data.csv')
-    nodes_data = nodes_data.set_index('uuid')
-    createHashes(data_identifier, k)
+    createHashes(nodes_data, data_identifier, k)
     createStats(data_identifier, k)
     createRevDict(data_identifier, k)
     saveDicts(data_identifier, k)

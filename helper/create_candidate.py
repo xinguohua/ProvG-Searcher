@@ -5,17 +5,26 @@ from collections import defaultdict
 import random
 
 
-def run(numberOfLAyerK, dataIndentifier):
+def run(numberOfLAyerK, dataIndentifier, nodes_data, min_length = 5, max_length = 2000):
     for testTrain in ['test', 'train']:
-        dataset_tmp, proc_uuids, nodes_data, save_file = prepare_dataset(dataIndentifier,
-                                                                         numberOfLAyerK,
-                                                                         testTrain)
+        dataset_train_path = f'data/{dataIndentifier}/k_{numberOfLAyerK}{testTrain}.pt'
+        with open(dataset_train_path, 'rb') as f:
+            dataset_train = pc.load(f)
+        dataset_tmp = {k: v for k, v in dataset_train.items() if min_length < len(v) < max_length}
+        print(f"Original dataset size: {len(dataset_train)}, Filtered dataset size: {len(dataset_tmp)}")
+        del dataset_train
+
+        # Filter nodes data based on dataset_tmp keys
+        df = nodes_data[nodes_data['uuid'].isin(list(dataset_tmp.keys()))]
+        proc_uuids = set(df['uuid'].values)
         proc_diffs = calculate_proc_diffs(nodes_data, dataset_tmp, proc_uuids)
         same_path_candidates = extract_same_path_candidates(proc_diffs)
         same_abs_candidates = extract_same_abs_candidates(dataset_tmp, nodes_data, proc_uuids)
         proc_candidates, revDict = process_candidates(proc_uuids, same_path_candidates, same_abs_candidates)
         optimize_candidate_distribution(proc_uuids, revDict, proc_candidates)
         compute_candidate_statistics(proc_candidates)
+
+        save_file = f'data/{dataIndentifier}/{testTrain}_neg_dict_{numberOfLAyerK}.pc'
         pc.dump(proc_candidates, open(save_file, 'wb'))
 
 
@@ -32,45 +41,7 @@ def get_neigh_with_path(df, paths):
     return set(df[df['path'].isin(paths)]['uuid'].values)
 
 
-def prepare_dataset(dataIdentifier, numberOfLayerK, testTrain, min_length=5, max_length=2000):
-    """
-    Prepare dataset for training or testing.
 
-    Parameters:
-        dataIdentifier (str): Identifier for the dataset folder.
-        numberOfLayerK (int): Parameter indicating the depth or number of layers (K).
-        testTrain (str): Indicates whether the data is for 'train' or 'test'.
-        min_length (int): Minimum length of dataset items to include.
-        max_length (int): Maximum length of dataset items to include.
-
-    Returns:
-        tuple: (dataset_tmp, proc_uuids, nodes_data, save_file)
-            - dataset_tmp: Filtered dataset dictionary.
-            - proc_uuids: Set of process UUIDs.
-            - nodes_data: DataFrame containing node features.
-            - save_file: Path to save the negative dictionary file.
-    """
-    # Load dataset
-    dataset_train_path = f'data/{dataIdentifier}/k_{numberOfLayerK}{testTrain}.pt'
-    with open(dataset_train_path, 'rb') as f:
-        dataset_train = pc.load(f)
-
-    # Filter dataset based on length criteria
-    dataset_tmp = {k: v for k, v in dataset_train.items() if min_length < len(v) < max_length}
-
-    print(f"Original dataset size: {len(dataset_train)}, Filtered dataset size: {len(dataset_tmp)}")
-    del dataset_train
-
-    # Load node data
-    nodes_data_path = f'node_feature/{dataIdentifier}/nodes_data.csv'
-    nodes_data = pd.read_csv(nodes_data_path)
-
-    # Filter nodes data based on dataset_tmp keys
-    df = nodes_data[nodes_data['uuid'].isin(list(dataset_tmp.keys()))]
-    # Extract unique process UUIDs
-    proc_uuids = set(df['uuid'].values)
-    save_file = f'data/{dataIdentifier}/{testTrain}_neg_dict_{numberOfLayerK}.pc'
-    return dataset_tmp, proc_uuids, nodes_data, save_file
 
 
 def calculate_proc_diffs(nodes_data, dataset_tmp, proc_uuids):
