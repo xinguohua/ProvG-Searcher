@@ -1,8 +1,11 @@
 import math
+import os
 import pickle as pc
 import random
 from collections import Counter
 from collections import defaultdict
+import helper.create_candidate as cre_candi
+import helper.create_pos_neg_dict as cd
 
 import networkx as nx
 import numpy as np
@@ -55,6 +58,14 @@ def load_datas(feature='ta1-theia-e3-official-6r', numberOfNeighK=None,
                args=None):
     global nodes_data, procCandidatesTest, procCandidatesTrain, numberOfNeighk, global_args, typeAbs
     global hash2graph, posQueryHashes, posQueryHashStats, hash2seed
+
+    # 创建负采样数据和正负样本字典的函数
+    sampling_stats = f'data/{args.data_identifier}/test_neg_dict_{args.numberOfNeighK}.pc'
+    if not os.path.exists(sampling_stats):
+        print('first sampling stats will be created')
+        print('this is a one time process for each dataset')
+        cre_candi.run(args.numberOfNeighK,args.data_identifier)
+        cd.run(args.data_identifier,args.numberOfNeighK)
 
     numberOfNeighk = numberOfNeighK
     global_args = args

@@ -83,8 +83,6 @@ def getemb(args):
     logger = SummaryWriter(comment=args_str)
 
     model = build_model(args)
-#     model = nn.DataParallel(model,device_ids = [1,4,5]).module
-#     model.to("cuda")
     model.share_memory()
 
     if args.method_type == "order":

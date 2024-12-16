@@ -5,11 +5,9 @@ import pandas as pd
 import pickle as pc
 from collections import defaultdict
 import networkx as nx
-
 import sys
-
 sys.path.insert(0, 'helper/')
-import hash
+from helper import hash
 
 
 def load_graph_file(file, type2newType, minLimit=5, maxlimit=2000):

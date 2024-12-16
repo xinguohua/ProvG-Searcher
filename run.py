@@ -1,12 +1,9 @@
-from common import utils
 import matplotlib.pyplot as plt
+from common import utils
 plt.rcParams.update({'font.size': 16})
 from subgraph_matching import train
 import argparse
-import helper.create_candidate as cn
-import helper.create_pos_neg_dict as cd
-from subgraph_matching import config 
-import os
+from subgraph_matching import config
 
 if __name__ == "__main__":
     # 解析命令行参数
@@ -14,13 +11,6 @@ if __name__ == "__main__":
     utils.parse_optimizer(parser)
     config.parse_encoder(parser)
     args = parser.parse_args()
-    # 创建负采样数据和正负样本字典的函数
-    sampling_stats = f'data/{args.data_identifier}/test_neg_dict_{args.numberOfNeighK}.pc'
-    if not os.path.exists(sampling_stats):
-        print('first sampling stats will be created')
-        print('this is a one time process for each dataset')
-        cn.run(args.numberOfNeighK,args.data_identifier)
-        cd.run(args.data_identifier,args.numberOfNeighK) 
     # 加载数据集
     ### load dataset and set utils parameters accordingly
     utils.load_datas(feature=args.data_identifier, numberOfNeighK=args.numberOfNeighK, args=args)
