@@ -12,7 +12,6 @@ if __name__ == "__main__":
     config.parse_encoder(parser)
     args = parser.parse_args()
     # 加载数据集
-    ### load dataset and set utils parameters accordingly
     utils.load_datas(feature=args.data_identifier, numberOfNeighK=args.numberOfNeighK, args=args)
     utils.prepare_feature(feature=args.data_identifier)
     utils.numberOfFeature = len(list(utils.abstractType2array.values())[0])

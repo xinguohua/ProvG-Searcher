@@ -11,12 +11,12 @@ def run(numberOfLAyerK, dataIndentifier):
                                                                          numberOfLAyerK,
                                                                          testTrain)
         proc_diffs = calculate_proc_diffs(nodes_data, dataset_tmp, proc_uuids)
-        samePathCandidates = extract_same_path_candidates(proc_diffs)
-        sameAbsCandidates = extract_same_abs_candidates(dataset_tmp, nodes_data, proc_uuids)
-        procCandidates, revDict = process_candidates(proc_uuids, samePathCandidates, sameAbsCandidates)
-        optimize_candidate_distribution(proc_uuids, revDict, procCandidates)
-        compute_candidate_statistics(procCandidates)
-        pc.dump(procCandidates, open(save_file, 'wb'))
+        same_path_candidates = extract_same_path_candidates(proc_diffs)
+        same_abs_candidates = extract_same_abs_candidates(dataset_tmp, nodes_data, proc_uuids)
+        proc_candidates, revDict = process_candidates(proc_uuids, same_path_candidates, same_abs_candidates)
+        optimize_candidate_distribution(proc_uuids, revDict, proc_candidates)
+        compute_candidate_statistics(proc_candidates)
+        pc.dump(proc_candidates, open(save_file, 'wb'))
 
 
 def get_neigh(g, seed_proc, tip, proc_uuids, nodes_data):
