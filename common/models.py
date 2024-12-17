@@ -1,5 +1,5 @@
 """Defines all graph embedding models"""
-
+import os
 import pickle as pc
 import torch
 import torch.nn as nn
@@ -350,3 +350,16 @@ class GINConv(pyg_nn.MessagePassing):
     def __repr__(self):
         return '{}(nn={})'.format(self.__class__.__name__, self.nn)
 
+
+def build_model(args):
+    # build model
+    if args.method_type == "order":
+        model = OrderEmbedder(args.feature_size, args.hidden_dim, args)
+    elif args.method_type == "mlp":
+        model = BaselineMLP(args.feature_size, args.hidden_dim, args)
+    model.to(utils.get_device())
+    if os.path.exists(args.model_path):
+        print('Model is loaded !!!!!!!!!')
+        model.load_state_dict(torch.load(args.model_path,
+            map_location=utils.get_device()))
+    return model

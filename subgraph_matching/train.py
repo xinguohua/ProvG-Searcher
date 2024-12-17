@@ -1,4 +1,5 @@
 """Train the order embedding model"""
+from common.models import build_model
 
 # Set this flag to True to use hyperparameter optimization
 # We use Testtube for hyperparameter tuning
@@ -20,18 +21,7 @@ else:
     from subgraph_matching.config import parse_encoder
 from subgraph_matching.test import validation
 
-def build_model(args):
-    # build model
-    if args.method_type == "order":
-        model = models.OrderEmbedder(args.feature_size, args.hidden_dim, args)
-    elif args.method_type == "mlp":
-        model = models.BaselineMLP(args.feature_size, args.hidden_dim, args)
-    model.to(utils.get_device())
-    if os.path.exists(args.model_path):
-        print('Model is loaded !!!!!!!!!')
-        model.load_state_dict(torch.load(args.model_path,
-            map_location=utils.get_device()))
-    return model
+
 
 def make_data_source(args,isTrain=True):
     data_source = data.DiskDataSource(args.dataset, args.data_identifier,args.numberOfNeighK,
@@ -153,6 +143,8 @@ def train_loop(args):
         if epoch % args.eval_interval == 0:
             validation(args, model, test_pts, logger, epoch, verbose=True)
 
+        torch.save(model.state_dict(), args.model_path)
+        print("Model saved at: ", args.model_path)
 def main(force_test=False):
     parser = (argparse.ArgumentParser(description='Order embedding arguments')
         if not HYPERPARAM_SEARCH else

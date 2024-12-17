@@ -74,8 +74,12 @@ def load_datas(feature='ta1-theia-e3-official-6r', numberOfNeighK=None,
         lambda tp: abstarct_indexer.get(tp, default_index)
     )
 
-    cre_candi.run(args.numberOfNeighK, args.data_identifier, nodes_data)
-    cd.run(nodes_data, args.data_identifier, args.numberOfNeighK)
+    sampling_stats = f'data/{args.data_identifier}/test_neg_dict_{args.numberOfNeighK}.pc'
+    if not os.path.exists(sampling_stats):
+        print('first sampling stats will be created')
+        print('this is a one time process for each dataset')
+        cre_candi.run(args.numberOfNeighK, args.data_identifier, nodes_data)
+        cd.run(nodes_data, args.data_identifier, args.numberOfNeighK)
 
     numberOfNeighk = numberOfNeighK
     global_args = args
