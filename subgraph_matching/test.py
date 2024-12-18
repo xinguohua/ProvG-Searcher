@@ -126,21 +126,58 @@ def validation(args, model, test_pts, logger, epoch, verbose=False):
     return labels, raw_pred
 
 
+
+def test(args, model, test_pts, logger, epoch, verbose=False):
+    model.eval()
+    all_emb_as, all_emb_bs = [], []
+    all_raw_preds, all_preds, all_labels = [], [], []
+    for pos_a, pos_b in test_pts:
+        if pos_a:
+            pos_a = pos_a.to(utils.get_device())
+            pos_b = pos_b.to(utils.get_device())
+        with torch.no_grad():
+            if pos_a:
+                emb_pos_a, emb_pos_b = (model.emb_model(pos_a),
+                                        model.emb_model(pos_b))
+                all_emb_as.extend(emb_pos_a)
+                all_emb_bs.extend(emb_pos_b)
+                pred = model(emb_pos_a, emb_pos_b)  # embeds
+                raw_pred = model.predict(pred)  # diff between embeds
+
+            if args.method_type == "order":
+                pred = model.clf_model(torch.sigmoid(raw_pred.unsqueeze(1)))
+                pred = pred.argmax(dim=-1)
+            elif args.method_type == "ensemble":
+                pred = torch.stack([m.clf_model(
+                    raw_pred.unsqueeze(1)).argmax(dim=-1) for m in model.models])
+                for i in range(pred.shape[1]):
+                    print(pred[:, i])
+                pred = torch.min(pred, dim=0)[0]
+            elif args.method_type == "mlp":
+                raw_pred = raw_pred[:, 1]
+                pred = pred.argmax(dim=-1)
+        all_raw_preds.append(raw_pred)
+        all_preds.append(pred)
+    pred = torch.cat(all_preds, dim=-1)
+    return pred
+
+
 # 设置参数
 class Args:
     def __init__(self):
         self.method_type = "order"  # 可选: "order", "ensemble", "mlp"
         self.test = False
         self.model_path = "../ckpt/ta1-theia-e3-official-6r_model.pt"
-        self.feature_size=54
-        self.hidden_dim=256
+        self.feature_size = 54
+        self.hidden_dim = 256
         self.dropout = 0.0
-        self.n_layers=4
+        self.n_layers = 4
         self.conv_type = 'SAGE_typed'
         self.skip = 'learnable'
-        self.n_edge_type=5
-        self.pool='mean'
-        self.margin=0.1
+        self.n_edge_type = 5
+        self.pool = 'mean'
+        self.margin = 0.1
+
 
 def create_single_graph(num_nodes, num_edges):
     """
@@ -159,6 +196,7 @@ def create_single_graph(num_nodes, num_edges):
     data.type_edge = type_edge
 
     return data
+
 
 def test_model(args, test_pts):
     """
@@ -195,18 +233,16 @@ def test_model(args, test_pts):
         raise FileNotFoundError(f"Model path {args.model_path} does not exist.")
     print(f"Loading trained model from {args.model_path}...")
     model.load_state_dict(torch.load(args.model_path, map_location=device))
-    model.eval()  # 设置模型为验证模式
 
     # 执行验证
     print("Running validation on test dataset...")
     epoch = 0  # 测试阶段，epoch 设置为 0
-    labels, raw_pred = validation(args, model, test_pts, logger, epoch, verbose=True)
+    raw_pred = test(args, model, test_pts, logger, epoch, verbose=True)
 
     # 输出结果
     print("Validation Complete.")
-    print("Labels: ", labels)
     print("Raw Predictions: ", raw_pred)
-    return labels, raw_pred
+    return raw_pred
 
 
 def generate_test_pts(batch_size=4):
@@ -220,26 +256,17 @@ def generate_test_pts(batch_size=4):
         pos_a = Batch.from_data_list([create_single_graph(20, 50) for _ in range(1)])
         pos_b = Batch.from_data_list([create_single_graph(20, 50) for _ in range(1)])
 
-        # 生成负例图
-        neg_a = Batch.from_data_list([create_single_graph(20, 50) for _ in range(2)])
-        neg_b = Batch.from_data_list([create_single_graph(20, 50) for _ in range(2)])
-
-        test_pts.append((pos_a, pos_b, neg_a, neg_b))
+        test_pts.append((pos_a, pos_b))
     return test_pts
+
 
 # 主函数入口
 if __name__ == "__main__":
-    # 实例化参数
     args = Args()
 
-    # 生成测试数据
     print("Generating test data...")
     test_pts = generate_test_pts()
 
-    # 调用测试函数
     print("Starting model testing...")
-    labels, raw_pred = test_model(args, test_pts)
-
-    # 输出最终结果
-    print("Final Labels: ", labels)
+    raw_pred = test_model(args, test_pts)
     print("Final Raw Predictions: ", raw_pred)
